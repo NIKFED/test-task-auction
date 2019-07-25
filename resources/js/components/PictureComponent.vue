@@ -12,9 +12,6 @@
                                 <p>
                                     <a :href="'/pictures/view/' + picture.id" class="btn btn-sm btn-outline-secondary">View</a>
                                 </p>
-                                <p>
-                                    <a :href="'/pictures/edit/' + picture.id" v-if="is_admin" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                </p>
                             </div>
                             <small class="text-muted">Start price: {{picture.start_price}} $</small>
                         </div>
