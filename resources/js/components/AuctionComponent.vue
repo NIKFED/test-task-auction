@@ -138,7 +138,7 @@
             {
                 axios.get('/auction/settings')
                     .then(response => {
-                        this.date = Math.trunc(new Date().getTime() / 1000) + (response.data * 10);
+                        this.date = Math.trunc(new Date().getTime() / 1000) + (response.data * 60);
                     });
 
                 this.timer_loop();
