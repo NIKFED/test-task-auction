@@ -9,8 +9,7 @@ class AuctionController extends Controller
 {
     public function index(Request $request)
     {
-        $pictures_data = pictures::all();
-//        ->where('inAuction', '1');
+        $pictures_data = pictures::all()->where('inAuction', '1');
 
         if ($request->expectsJson()) {
             return response()->json($pictures_data->toArray());
