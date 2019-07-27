@@ -18,10 +18,12 @@ Route::get('/pictures/view/{id}', 'PicturesController@view')->name('view-picture
 Route::get('/pictures/create', 'PicturesController@create')->middleware(['auth', 'confirmed']);
 
 Route::get('/auction', 'AuctionController@index')->middleware(['auth', 'confirmed']);
-Route::post('/auction/start', 'AuctionSettingsController@auctionStart')->middleware(['auth', 'confirmed']);
+Route::post('/auction/update', 'AuctionController@updatePrice')->middleware(['auth', 'confirmed']);
+Route::get('/auction/start', 'AuctionSettingsController@auctionStart')->middleware(['auth', 'confirmed']);
 Route::post('/auction/end', 'AuctionSettingsController@auctionEnd')->middleware(['auth', 'confirmed']);
 Route::get('/auction/settings', 'AuctionSettingsController@getTimer')->middleware(['auth', 'confirmed']);
-Route::post('/auction/picture', 'AuctionSettingsController@setPictureData')->middleware(['auth', 'confirmed']);
+Route::get('/auction/picture', 'AuctionController@nextPicture')->middleware(['auth', 'confirmed']);
+Route::post('/auction/pictureupdate', 'AuctionController@setPictureData')->middleware(['auth', 'confirmed']);
 Route::post('/auction/chat', 'ChatController@setMessage')->name('send-message')->middleware(['auth', 'confirmed']);
 
 Route::get('/buys', 'BuysController@index')->middleware(['auth', 'confirmed']);

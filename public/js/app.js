@@ -1778,6 +1778,18 @@ module.exports = {
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_0__);
+function _objectDestructuringEmpty(obj) { if (obj == null) throw new TypeError("Cannot destructure undefined"); }
+
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 //
 //
 //
@@ -1826,7 +1838,10 @@ __webpack_require__.r(__webpack_exports__);
   data: function data() {
     return {
       pictures: [],
-      rate: [],
+      id_curr_picture: 0,
+      rate: 0,
+      current_price: 0,
+      first_bid: true,
       balance: 0,
       user_name: '',
       now: 0,
@@ -1836,6 +1851,8 @@ __webpack_require__.r(__webpack_exports__);
       finish: false,
       is_admin: false,
       function_once: true,
+      function_once_2: true,
+      render: false,
       show_rate: true,
       replenishment: 0
     };
@@ -1846,22 +1863,41 @@ __webpack_require__.r(__webpack_exports__);
 
       axios__WEBPACK_IMPORTED_MODULE_0___default.a.get('/auction').then(function (response) {
         _this.pictures = response.data;
+        _this.render = true;
       });
-      window.Echo.channel('laravel_database_auction_data').listen('AuctionInformation', function (_ref) {
-        var picture_data = _ref.picture_data;
-        _this.pictures[picture_data.id - 1] = picture_data;
-
-        _this.set_timer();
-      });
-      window.Echo.channel('laravel_database_auction_start').listen('AuctionStart', function (_ref2) {
-        var start_auction = _ref2.start_auction;
+      window.Echo.channel('laravel_database_auction_start').listen('AuctionStart', function (_ref) {
+        _objectDestructuringEmpty(_ref);
 
         _this.StartAuction();
+      });
+      window.Echo.channel('laravel_database_auction_next').listen('AuctionNextPicture', function (_ref2) {
+        _objectDestructuringEmpty(_ref2);
+
+        _this.NextPicture();
+      });
+      window.Echo.channel('laravel_database_auction_data').listen('AuctionInformation', function (_ref3) {
+        var picture_data = _ref3.picture_data;
+        _this.pictures[_this.id_curr_picture] = picture_data;
+      });
+      window.Echo.channel('laravel_database_price_update').listen('UpdatePrice', function (_ref4) {
+        var price_data = _ref4.price_data;
+
+        _this.set_timer();
+
+        _this.show_rate = true;
+
+        if (_this.first_bid) {
+          _this.first_bid = false;
+        } else {
+          _this.balance = _this.balance + _this.current_price;
+        }
+
+        _this.current_price = parseFloat(price_data);
       });
       axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('../users/balance', {
         id: this.user_id
       }).then(function (response) {
-        _this.balance = response.data;
+        _this.balance = parseFloat(response.data);
       });
       axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('../users/name', {
         id: this.user_id
@@ -1869,61 +1905,86 @@ __webpack_require__.r(__webpack_exports__);
         _this.user_name = response.data;
       });
     },
-    OfferBid: function OfferBid(id) {
-      if (parseFloat(this.balance) >= parseFloat(this.rate[id]) + parseFloat(this.pictures[id - 1].buy_price)) {
-        this.pictures[id - 1].buy_price = parseFloat(this.pictures[id - 1].buy_price) + parseFloat(this.rate[id]);
-        this.pictures[id - 1].owner = this.user_name;
-        axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('/auction/picture', {
-          picture_data: this.pictures[id - 1]
+    OfferBid: function OfferBid() {
+      if (this.balance >= this.current_price + parseFloat(this.rate)) {
+        alert('Ставка была предложена!');
+        this.current_price = this.current_price + parseFloat(this.rate);
+        this.first_bid = false;
+        this.rate = 0;
+        axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('/auction/update', {
+          price: this.current_price
         });
-        this.balance = this.balance - this.pictures[id - 1].buy_price;
-        axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('/users/balancewriting', {
-          user_id: this.user_id,
-          balance: this.balance
+        this.balance = this.balance - this.current_price;
+        this.show_rate = false;
+        this.pictures[this.id_curr_picture].buy_price = this.current_price;
+        this.pictures[this.id_curr_picture].owner = this.user_name;
+        axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('/auction/picture', {
+          picture_data: this.pictures[this.id_curr_picture]
         });
         this.set_timer();
       } else {
-        alert('Недостаточно средств! Или неправильно введена ставка');
+        alert('Недостаточно средств или неправильно введена ставка!');
       }
     },
     StartAuction: function StartAuction() {
       if (this.is_admin && this.function_once) {
         this.function_once = false;
-        axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('/auction/start', {
-          start_auction: true
-        });
+        axios__WEBPACK_IMPORTED_MODULE_0___default.a.get('/auction/start');
       }
 
-      this.pictures.forEach(function (picture) {
-        picture.buy_price = picture.start_price;
-      });
+      this.current_price = parseFloat(this.pictures[this.id_curr_picture].start_price);
       this.start_auction = true;
+      this.first_bid = true;
       this.show_start = false;
       this.set_timer();
     },
     EndAuction: function EndAuction() {
-      this.finish = true;
-      this.show_rate = false;
-      axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('/auction/end', {
-        picture_data: this.pictures
+      if (this.id_curr_picture < this.pictures.length - 1) {
+        axios__WEBPACK_IMPORTED_MODULE_0___default.a.get('/auction/picture', {});
+        this.NextPicture();
+      } else {
+        this.start_auction = false;
+        this.show_rate = false;
+        this.finish = true;
+        this.show_rate = false;
+        axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('/auction/end', {
+          picture_data: this.pictures
+        });
+      }
+    },
+    NextPicture: function NextPicture() {
+      axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('/users/balancewriting', {
+        user_id: this.user_id,
+        balance: this.balance
       });
+      this.id_curr_picture++;
+      this.show_rate = true;
+      this.first_bid = true;
+      this.function_once = true;
+      this.StartAuction();
+    },
+    SkipTime: function SkipTime() {
+      this.function_once_2 = false;
+      this.EndAuction();
     },
     timer_loop: function timer_loop() {
       if (!this.finish) {
         this.now = Math.trunc(new Date().getTime() / 1000);
 
-        if (this.date - this.now == 0) {
-          this.EndAuction();
+        if (this.date - this.now == 0 && this.function_once_2) {
+          this.SkipTime();
+        } else {
+          setTimeout(this.timer_loop, 1000);
+          if (this.date - this.now != 0) this.function_once_2 = true;
         }
-
-        setTimeout(this.timer_loop, 1000);
       }
     },
     set_timer: function set_timer() {
       var _this2 = this;
 
+      // this.function_once_2 = true;
       axios__WEBPACK_IMPORTED_MODULE_0___default.a.get('/auction/settings').then(function (response) {
-        _this2.date = Math.trunc(new Date().getTime() / 1000) + response.data * 10;
+        _this2.date = Math.trunc(new Date().getTime() / 1000) + response.data * 60;
       });
       this.timer_loop();
     },
@@ -1937,6 +1998,7 @@ __webpack_require__.r(__webpack_exports__);
       });
     },
     PuyBalance: function PuyBalance() {
+      alert('Баланс был пополнен!');
       this.balance = parseFloat(this.balance) + parseFloat(this.replenishment);
       axios__WEBPACK_IMPORTED_MODULE_0___default.a.post('/users/balancewriting', {
         user_id: this.user_id,
@@ -47607,7 +47669,10 @@ var render = function() {
   var _c = _vm._self._c || _h
   return _c("div", { staticClass: "container" }, [
     _c("div", { staticClass: "lead" }, [
-      _vm._v("\n        Balance: " + _vm._s(_vm.balance) + " $\n        "),
+      _c("p", { staticClass: "float-right" }, [
+        _vm._v("Balance: " + _vm._s(_vm.balance) + " $")
+      ]),
+      _vm._v(" "),
       _c("input", {
         directives: [
           {
@@ -47617,7 +47682,7 @@ var render = function() {
             expression: "replenishment"
           }
         ],
-        staticClass: "form-control",
+        staticClass: "text-muted",
         attrs: { type: "text" },
         domProps: { value: _vm.replenishment },
         on: {
@@ -47691,54 +47756,74 @@ var render = function() {
     _vm._v(" "),
     _c("br"),
     _vm._v(" "),
-    _c(
-      "div",
-      { staticClass: "row" },
-      _vm._l(_vm.pictures, function(picture) {
-        return _c("div", { staticClass: "col-md-4" }, [
-          _c("div", { staticClass: "card mb-4 box-shadow" }, [
-            _c("div", { staticClass: "card-body" }, [
+    _c("div", { staticClass: "row" }, [
+      _c("div", { staticClass: "card mb-4 box-shadow" }, [
+        _vm.render
+          ? _c("div", { staticClass: "card-body" }, [
               _c("p", { staticClass: "card-text" }, [
-                _vm._v(_vm._s(picture.name))
+                _vm._v(_vm._s(_vm.pictures[_vm.id_curr_picture].name))
               ]),
               _vm._v(" "),
               _c("img", {
-                attrs: { src: "images/" + picture.image, width: "50%" }
+                attrs: {
+                  src: "images/" + _vm.pictures[_vm.id_curr_picture].image,
+                  width: "50%"
+                }
               }),
               _vm._v(" "),
               _c("p", { staticClass: "card-text" }, [
-                _vm._v("Author: " + _vm._s(picture.author))
+                _vm._v(
+                  "Author: " + _vm._s(_vm.pictures[_vm.id_curr_picture].author)
+                )
               ]),
               _vm._v(" "),
-              _vm.show_rate
+              _vm.start_auction
                 ? _c("div", [
-                    _vm.start_auction
-                      ? _c("input", {
-                          directives: [
-                            {
-                              name: "model",
-                              rawName: "v-model",
-                              value: _vm.rate[picture.id],
-                              expression: "rate[picture.id]"
-                            }
-                          ],
-                          staticClass: "form-control",
-                          attrs: { type: "text" },
-                          domProps: { value: _vm.rate[picture.id] },
-                          on: {
-                            input: function($event) {
-                              if ($event.target.composing) {
-                                return
+                    _vm.show_rate
+                      ? _c("div", [
+                          _c("input", {
+                            directives: [
+                              {
+                                name: "model",
+                                rawName: "v-model",
+                                value: _vm.rate,
+                                expression: "rate"
                               }
-                              _vm.$set(
-                                _vm.rate,
-                                picture.id,
-                                $event.target.value
-                              )
+                            ],
+                            staticClass: "text-muted",
+                            attrs: { type: "text" },
+                            domProps: { value: _vm.rate },
+                            on: {
+                              input: function($event) {
+                                if ($event.target.composing) {
+                                  return
+                                }
+                                _vm.rate = $event.target.value
+                              }
                             }
-                          }
-                        })
-                      : _vm._e(),
+                          }),
+                          _vm._v(" "),
+                          _c("br"),
+                          _vm._v(" "),
+                          _c("div", { staticClass: "btn-group" }, [
+                            _c(
+                              "button",
+                              {
+                                staticClass: "btn btn-sm btn-outline-secondary",
+                                on: {
+                                  click: function($event) {
+                                    $event.preventDefault()
+                                    return _vm.OfferBid($event)
+                                  }
+                                }
+                              },
+                              [_vm._v("Offer bid")]
+                            )
+                          ])
+                        ])
+                      : _c("div", [
+                          _c("p", [_vm._v("Ставка сделана ожидайте...")])
+                        ]),
                     _vm._v(" "),
                     _c(
                       "div",
@@ -47747,44 +47832,39 @@ var render = function() {
                           "d-flex justify-content-between align-items-center"
                       },
                       [
-                        _c("div", { staticClass: "btn-group" }, [
-                          _vm.start_auction
-                            ? _c(
-                                "button",
-                                {
-                                  staticClass:
-                                    "btn btn-sm btn-outline-secondary",
-                                  on: {
-                                    click: function($event) {
-                                      $event.preventDefault()
-                                      return _vm.OfferBid(picture.id)
-                                    }
-                                  }
-                                },
-                                [_vm._v("Offer bid")]
-                              )
-                            : _vm._e()
-                        ]),
-                        _vm._v(" "),
-                        _vm.start_auction
-                          ? _c("small", { staticClass: "text-muted" }, [
-                              _vm._v(
-                                "Current price: " +
-                                  _vm._s(picture.buy_price) +
-                                  " $"
-                              )
-                            ])
-                          : _vm._e()
+                        _c("div", { staticClass: "text-muted" }, [
+                          _c("small", { staticClass: "text-muted" }, [
+                            _vm._v("Current price: ")
+                          ]),
+                          _vm._v(" "),
+                          _c("small", { staticClass: "text-muted" }, [
+                            _vm._v(" " + _vm._s(_vm.current_price))
+                          ])
+                        ])
                       ]
-                    )
+                    ),
+                    _vm._v(" "),
+                    _c("div", [
+                      _c(
+                        "button",
+                        {
+                          staticClass: "btn btn-sm btn-outline-secondary",
+                          on: {
+                            click: function($event) {
+                              $event.preventDefault()
+                              return _vm.SkipTime($event)
+                            }
+                          }
+                        },
+                        [_vm._v("Skip Time")]
+                      )
+                    ])
                   ])
                 : _vm._e()
             ])
-          ])
-        ])
-      }),
-      0
-    )
+          : _vm._e()
+      ])
+    ])
   ])
 }
 var staticRenderFns = []

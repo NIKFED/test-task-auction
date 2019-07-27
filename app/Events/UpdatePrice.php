@@ -1,25 +1,30 @@
 <?php
+
 namespace App\Events;
+
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
-class AuctionInformation implements ShouldBroadcast
+class UpdatePrice implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
-    public $picture_data;
+
+    public $price_data;
     /**
      * Create a new event instance.
      *
      * @return void
      */
-    public function __construct($picture_data)
+    public function __construct($price)
     {
-        $this->picture_data = $picture_data;
+        $this->price_data = $price;
+
         $this->dontBroadcastToCurrentUser();
     }
+
     /**
      * Get the channels the event should broadcast on.
      *
@@ -27,6 +32,6 @@ class AuctionInformation implements ShouldBroadcast
      */
     public function broadcastOn()
     {
-        return new Channel('auction_data');
+        return new Channel('price_update');
     }
 }

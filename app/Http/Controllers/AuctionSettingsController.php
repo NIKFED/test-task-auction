@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\AuctionSettings;
-use App\Events\AuctionInformation;
 use App\Events\AuctionStart;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,11 +15,6 @@ class AuctionSettingsController extends Controller
 //        ->where('inAuction', '1');
 
         return $timer_data->time;
-    }
-
-    public function setPictureData(request $request)
-    {
-        AuctionInformation::dispatch($request->input('picture_data'));
     }
 
     public function auctionEnd(request $request)
@@ -44,8 +38,8 @@ class AuctionSettingsController extends Controller
         }
     }
 
-    public function auctionStart(request $request)
+    public function auctionStart()
     {
-        AuctionStart::dispatch($request->input('start_auction'));
+        AuctionStart::dispatch();
     }
 }
